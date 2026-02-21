@@ -6,39 +6,55 @@ TOKEN = os.getenv("BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("AIzaSyARc-IoUyygjHTjr5xytu5HeNCZk21Q9vg")
 
 def get_ai_response(user_msg):
-    """Google Gemini AI ব্যবহার করে উত্তর দেওয়া"""
+    """Google Gemini AI ব্যবহার করে স্মার্ট উত্তর তৈরি করা"""
     if not GEMINI_API_KEY:
-        return "ধন্যবাদ, আমরা শীঘ্রই যোগাযোগ করব।"
+        return "Error: Gemini API Key missing in GitHub Secrets!"
+
     try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         headers = {'Content-Type': 'application/json'}
-        prompt = f"You are a helpful Bengali assistant for Mintu Shop. Sell gadgets like Watch-500TK, Headphone-300TK. Customer asked: {user_msg}. Answer briefly in Bengali."
+        # আপনার বিজনেসের তথ্য এখানে দিন
+        prompt = f"You are a helpful Bengali assistant for Mintu Shop. We sell Watch (500 TK) and Headphones (300 TK). Customer asked: {user_msg}. Answer politely in Bengali."
         
         data = {"contents": [{"parts": [{"text": prompt}]}]}
         r = requests.post(url, headers=headers, json=data, timeout=15)
-        return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+        
+        res_json = r.json()
+        if 'candidates' in res_json:
+            return res_json['candidates'][0]['content']['parts'][0]['text'].strip()
+        else:
+            return f"AI Error: {res_json.get('error', {}).get('message', 'Unknown error')}"
     except Exception as e:
-        print(f"AI Error: {e}")
-        return "আমাদের কাস্টমার কেয়ারে কল করুন।"
+        return f"System Error: {str(e)}"
 
 def handle_updates():
-    """মেসেজ চেক করে উত্তর পাঠানো"""
+    """মেসেজ পড়া এবং উত্তর দেওয়া"""
+    # গেট আপডেট
     url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
-    try:
-        updates = requests.get(url).json()
-        if updates.get("ok") and updates.get("result"):
-            for update in updates["result"]:
+    updates = requests.get(url).json()
+    
+    if updates.get("ok") and updates.get("result"):
+        last_update_id = 0
+        for update in updates["result"]:
+            last_update_id = update["update_id"]
+            if "message" in update and "text" in update["message"]:
                 chat_id = update["message"]["chat"]["id"]
                 user_text = update["message"]["text"]
                 
-                # AI উত্তর তৈরি
-                reply = get_ai_inspiration = get_ai_response(user_text)
+                print(f"Processing message: {user_text}")
                 
-                # উত্তর পাঠানো
+                # AI থেকে উত্তর নেওয়া
+                reply = get_ai_response(user_text)
+                
+                # কাস্টমারকে উত্তর পাঠানো
                 send_url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
                 requests.post(send_url, json={"chat_id": chat_id, "text": reply})
-    except Exception as e:
-        print(f"Telegram Error: {e}")
+        
+        # মেসেজগুলো 'পড়া হয়েছে' হিসেবে মার্ক করা যাতে পরের বার ডুপ্লিকেট না আসে
+        requests.get(f"https://api.telegram.org/bot{TOKEN}/getUpdates?offset={last_update_id + 1}")
 
 if __name__ == "__main__":
-    handle_updates()
+    if TOKEN:
+        handle_updates()
+    else:
+        print("Error: BOT_TOKEN is missing!")
