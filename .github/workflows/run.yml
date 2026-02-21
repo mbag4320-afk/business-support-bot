@@ -9,13 +9,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - run: pip install requests
-      - env:
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run Business Bot
+        env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }} # এই লাইনটি সঠিক থাকা জরুরি
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
