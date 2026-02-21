@@ -6,31 +6,37 @@ TOKEN = os.getenv("BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 def get_ai_response(user_msg):
-    """Google Gemini AI ব্যবহার করে স্মার্ট উত্তর তৈরি করা"""
+    """গুগলের একাধিক মডেল ট্রাই করার স্মার্ট লজিক"""
     if not GEMINI_API_KEY:
         return "❌ Error: GEMINI_API_KEY পাওয়া যাচ্ছে না।"
 
-    try:
-        # লিঙ্কটি v1beta থেকে বদলে v1 (Stable) করা হয়েছে
-        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-        headers = {'Content-Type': 'application/json'}
-        
-        # আপনার বিজনেসের তথ্য
-        prompt = f"You are a professional Bengali assistant for 'Mintu Shop'. We sell Watch (500 TK) and Headphones (300 TK). Customer asked: {user_msg}. Answer politely in Bengali."
-        
-        data = {"contents": [{"parts": [{"text": prompt}]}]}
-        r = requests.post(url, headers=headers, json=data, timeout=15)
-        res_json = r.json()
-        
-        if 'candidates' in res_json:
-            return res_json['candidates'][0]['content']['parts'][0]['text'].strip()
-        elif 'error' in res_json:
-            # যদি এখনও এরর দেয় তবে সরাসরি সেটি দেখাবে
-            return f"❌ AI Error: {res_json['error']['message']}"
-        else:
-            return "🤖 AI এই মুহূর্তে উত্তর দিতে পারছে না।"
-    except Exception as e:
-        return f"⚠️ System Error: {str(e)}"
+    # যে মডেলগুলো আমরা ট্রাই করব
+    models = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-1.0-pro"]
+    
+    last_error = ""
+    
+    for model_name in models:
+        try:
+            # v1beta এবং v1 উভয় ভার্সনেই ট্রাই করবে
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+            headers = {'Content-Type': 'application/json'}
+            
+            prompt = f"You are a helpful Bengali assistant for Mintu Shop. We sell Watch (500 TK) and Headphones (300 TK). Customer asked: {user_msg}. Answer politely in Bengali."
+            
+            data = {"contents": [{"parts": [{"text": prompt}]}]}
+            r = requests.post(url, headers=headers, json=data, timeout=15)
+            res_json = r.json()
+            
+            if 'candidates' in res_json:
+                return res_json['candidates'][0]['content']['parts'][0]['text'].strip()
+            elif 'error' in res_json:
+                last_error = res_json['error']['message']
+                continue # পরের মডেল ট্রাই করবে
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    return f"❌ AI Error: সব মডেল ট্রাই করা হয়েছে কিন্তু কাজ করছে না। সর্বশেষ এরর: {last_error}"
 
 def handle_updates():
     """মেসেজ পড়া এবং উত্তর দেওয়া"""
@@ -45,14 +51,14 @@ def handle_updates():
                     chat_id = update["message"]["chat"]["id"]
                     user_text = update["message"]["text"]
                     
-                    # AI থেকে স্মার্ট উত্তর নেওয়া
+                    # স্মার্ট এআই উত্তর
                     reply = get_ai_response(user_text)
                     
-                    # কাস্টমারকে উত্তর পাঠানো
+                    # টেলিগ্রামে পাঠানো
                     requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
                                   json={"chat_id": chat_id, "text": reply})
             
-            # পড়া মেসেজগুলো ক্লিয়ার করা
+            # মেসেজ ক্লিয়ার করা
             requests.get(f"https://api.telegram.org/bot{TOKEN}/getUpdates?offset={last_update_id + 1}")
     except Exception as e:
         print(f"Telegram Error: {e}")
