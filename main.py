@@ -4,7 +4,7 @@ import time
 
 # এখানে আপনার তথ্যগুলো বসান
 TOKEN = "আপনার_টেলিগ্রাম_বট_টোকেন"
-GEMINI_API_KEY = "আপনার_জেমিনি_এপিআই_কী" # মিস্ট্রালের বদলে জেমিনি কী দিন
+GEMINI_API_KEY = "AIzaSyARc-IoUyygjHTjr5xytu5HeNCZk21Q9vg" # মিস্ট্রালের বদলে জেমিনি কী দিন
 
 def get_ai_response(user_msg):
     """Google Gemini AI ব্যবহার করে উত্তর দেওয়া"""
