@@ -8,14 +8,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 def get_ai_response(user_msg):
     """Google Gemini AI ব্যবহার করে স্মার্ট উত্তর তৈরি করা"""
     if not GEMINI_API_KEY:
-        return "❌ Error: GEMINI_API_KEY পাওয়া যাচ্ছে না। অনুগ্রহ করে GitHub Secrets চেক করুন।"
+        return "❌ Error: GEMINI_API_KEY পাওয়া যাচ্ছে না।"
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+        # লিঙ্কটি v1beta থেকে বদলে v1 (Stable) করা হয়েছে
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         headers = {'Content-Type': 'application/json'}
         
-        # আপনার বিজনেসের তথ্য এখানে দিন
-        prompt = f"You are a professional Bengali assistant for 'Mintu Shop'. We sell Gadgets. Prices: Watch-500TK, Headphone-300TK. Customer asked: {user_msg}. Answer politely and briefly in Bengali."
+        # আপনার বিজনেসের তথ্য
+        prompt = f"You are a professional Bengali assistant for 'Mintu Shop'. We sell Watch (500 TK) and Headphones (300 TK). Customer asked: {user_msg}. Answer politely in Bengali."
         
         data = {"contents": [{"parts": [{"text": prompt}]}]}
         r = requests.post(url, headers=headers, json=data, timeout=15)
@@ -24,9 +25,10 @@ def get_ai_response(user_msg):
         if 'candidates' in res_json:
             return res_json['candidates'][0]['content']['parts'][0]['text'].strip()
         elif 'error' in res_json:
+            # যদি এখনও এরর দেয় তবে সরাসরি সেটি দেখাবে
             return f"❌ AI Error: {res_json['error']['message']}"
         else:
-            return "🤖 AI এই মুহূর্তে উত্তর দিতে পারছে না, কিছুক্ষণ পর চেষ্টা করুন।"
+            return "🤖 AI এই মুহূর্তে উত্তর দিতে পারছে না।"
     except Exception as e:
         return f"⚠️ System Error: {str(e)}"
 
@@ -43,22 +45,18 @@ def handle_updates():
                     chat_id = update["message"]["chat"]["id"]
                     user_text = update["message"]["text"]
                     
-                    print(f"মেসেজ পেয়েছেন: {user_text}")
+                    # AI থেকে স্মার্ট উত্তর নেওয়া
                     reply = get_ai_response(user_text)
                     
-                    # উত্তর পাঠানো
+                    # কাস্টমারকে উত্তর পাঠানো
                     requests.post(f"https://api.telegram.org/bot{TOKEN}/sendMessage", 
                                   json={"chat_id": chat_id, "text": reply})
             
-            # পড়া মেসেজগুলো ক্লিয়ার করা যাতে বারবার উত্তর না আসে
+            # পড়া মেসেজগুলো ক্লিয়ার করা
             requests.get(f"https://api.telegram.org/bot{TOKEN}/getUpdates?offset={last_update_id + 1}")
-        else:
-            print("নতুন কোনো মেসেজ পাওয়া যায়নি।")
     except Exception as e:
         print(f"Telegram Error: {e}")
 
 if __name__ == "__main__":
     if TOKEN:
         handle_updates()
-    else:
-        print("Error: BOT_TOKEN missing!")
