@@ -1,0 +1,21 @@
+name: Business Bot Runner
+
+on:
+  schedule:
+    - cron: '*/5 * * * *' # প্রতি ৫ মিনিট পর পর চেক করবে
+  workflow_dispatch:      # ম্যানুয়ালি চালানোর বাটন
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: pip install -r requirements.txt
+      - env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+        run: python main.py
